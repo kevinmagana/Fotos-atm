@@ -1,0 +1,449 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fotos ATM</title>
+<meta name="theme-color" content="#16202a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#eef1f3; --surface:#ffffff; --ink:#16202a; --muted:#5d6b78; --line:#d6dde3;
+  --accent:#0b6e8a; --accent-ink:#ffffff; --ok:#1f8a4c; --ok-soft:#e3f3ea; --na:#8a94a0; --na-soft:#eceff2;
+  --warn:#b4570b; --warn-soft:#fbeee2;
+  --sans:"IBM Plex Sans Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0f161c; --surface:#18222b; --ink:#e6ecf1; --muted:#93a3b1; --line:#2b3843;
+    --accent:#3fb3d4; --accent-ink:#06222c; --ok:#4cc584; --ok-soft:#15301f; --na:#7d8995; --na-soft:#202b35;
+    --warn:#f0a15c; --warn-soft:#352414;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0f161c; --surface:#18222b; --ink:#e6ecf1; --muted:#93a3b1; --line:#2b3843;
+  --accent:#3fb3d4; --accent-ink:#06222c; --ok:#4cc584; --ok-soft:#15301f; --na:#7d8995; --na-soft:#202b35;
+  --warn:#f0a15c; --warn-soft:#352414;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.4}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:0 120px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ground);padding-block:12px 10px;border-bottom:1px solid var(--line)}
+.toprow{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font-size:22px;margin:0;letter-spacing:.01em}
+.count{font-family:var(--mono);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:24px 0 8px;font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid .full{grid-column:1/-1}
+@media (max-width:460px){.grid{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input[type=text],select{font:inherit;font-size:16px;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-weight:600;padding:10px;border:0;background:var(--ground);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.opts{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:12px;font-size:14px;color:var(--muted);align-items:center}
+.opts label{display:flex;gap:6px;align-items:center}
+.opts select{width:auto;padding:6px 8px;font-size:14px}
+ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+li.item{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start}
+li.item.done{border-left-color:var(--ok)}
+li.item.na{border-left-color:var(--na);opacity:.8}
+.num{font-family:var(--mono);font-weight:500;font-size:15px;color:var(--muted);width:26px;padding-top:2px;font-variant-numeric:tabular-nums}
+.name{font-weight:600;font-size:17px}
+.hint{font-size:13px;color:var(--muted)}
+.state{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:2px}
+.done .state{background:var(--ok-soft);color:var(--ok)}
+.na .state{background:var(--na-soft);color:var(--na)}
+.pend .state{background:var(--warn-soft);color:var(--warn)}
+.body{grid-column:2;display:flex;flex-direction:column;gap:8px}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.th{position:relative;width:88px}
+.th img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;background:var(--ground)}
+.th small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:2px}
+.th button{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;line-height:1;cursor:pointer}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;font-size:15px;border-radius:8px;padding:9px 14px;border:1px solid var(--line);background:var(--ground);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{font-size:13px;padding:7px 10px}
+.busy{font-size:13px;color:var(--accent);font-family:var(--mono)}
+input[type=file]{display:none}
+textarea{font:13px/1.45 var(--mono);width:100%;min-height:180px;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical}
+.summary{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--mono);font-size:14px;color:var(--muted);margin-bottom:10px}
+.summary b{color:var(--ink);font-weight:500}
+.missing{margin:0 0 12px;padding:10px 12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;font-size:14px}
+.missing.ok{background:var(--ok-soft);color:var(--ok)}
+.note{font-size:13px;color:var(--muted);margin:10px 0 0}
+.confirm{margin-top:10px;padding:10px;border:1px dashed var(--warn);border-radius:8px;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head><body style="margin:0">
+
+<div class="wrap">
+  <header class="top">
+    <div class="toprow"><h1>Fotos ATM</h1><span class="count" id="count">0 / 25</span></div>
+    <div class="bar"><i id="barFill"></i></div>
+  </header>
+
+  <h2>Datos del mantenimiento</h2>
+  <div class="panel">
+    <div class="grid">
+      <div class="full seg" role="group" aria-label="Tipo de mantenimiento">
+        <button type="button" id="tipoPrev" aria-pressed="true">Preventivo</button>
+        <button type="button" id="tipoCorr" aria-pressed="false">Correctivo</button>
+      </div>
+      <label class="f">Código del ATM<input type="text" id="atm" placeholder="Ej. ATM-0452" autocomplete="off"></label>
+      <label class="f">Ticket<input type="text" id="ticket" placeholder="Ej. INC-120334" autocomplete="off"></label>
+      <label class="f full">Agencia / ubicación<input type="text" id="agencia" placeholder="Ej. Agencia Centro, Tegucigalpa" autocomplete="off"></label>
+      <label class="f full">Técnico<input type="text" id="tecnico" placeholder="Tu nombre" autocomplete="name"></label>
+    </div>
+    <div class="opts">
+      <label for="peso">Tamaño por foto
+        <select id="peso">
+          <option value="150">máx. 150 KB</option>
+          <option value="250" selected>máx. 250 KB</option>
+          <option value="400">máx. 400 KB</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="sello" checked> Poner ATM, fecha y hora en la foto</label>
+    </div>
+  </div>
+
+  <h2>Fotos requeridas</h2>
+  <ul class="list" id="list"></ul>
+
+  <h2>Enviar</h2>
+  <div class="panel">
+    <div class="summary" id="summary"></div>
+    <p class="missing" id="missing"></p>
+    <div class="acts">
+      <button class="btn primary" type="button" id="btnShare">Compartir por correo</button>
+      <button class="btn" type="button" id="btnZip">Descargar todo (.zip)</button>
+      <button class="btn ghost" type="button" id="btnCopy">Copiar texto del correo</button>
+    </div>
+    <p class="note" id="shareNote"></p>
+    <h2 style="margin-top:16px">Texto del correo</h2>
+    <textarea id="mail" readonly></textarea>
+    <div class="acts" style="margin-top:14px">
+      <button class="btn ghost sm" type="button" id="btnReset">Empezar otro ATM</button>
+    </div>
+    <div class="confirm" id="confirmBox" hidden>
+      Se borran las fotos y los datos de este ATM.
+      <button class="btn sm" type="button" id="resetYes">Sí, borrar</button>
+      <button class="btn ghost sm" type="button" id="resetNo">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="camInput" accept="image/*" capture="environment">
+<input type="file" id="galInput" accept="image/*" multiple>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const ITEMS = [
+  {n:1,  name:"Serie DD"},
+  {n:2,  name:"Parte superior (CPU) limpia"},
+  {n:3,  name:"Parte inferior limpia"},
+  {n:4,  name:"Luces en verde", hint:"Dispositivos listos en verde"},
+  {n:5,  name:"System Info (procesador)"},
+  {n:6,  name:"Lectora y antiskimming limpios"},
+  {n:7,  name:"Monitor con filtro"},
+  {n:8,  name:"Panel DN o foto al SDU", hint:"Se debe desarmar el SDU"},
+  {n:9,  name:"Cámara", hint:"Importa que se vea el sensor"},
+  {n:10, name:"Dispositivos del ATM desarmado"},
+  {n:11, name:"Tipo de teclado"},
+  {n:12, name:"Scanner", hint:"Que funcione el QR"},
+  {n:13, name:"Climatización"},
+  {n:14, name:"UPS o regulador"},
+  {n:15, name:"ATM en línea"},
+  {n:16, name:"UPS desprotegido (regulador)", hint:"Solo si hay hallazgo"},
+  {n:17, name:"Cables eléctricos desprotegidos", hint:"Solo si hay hallazgo"},
+  {n:18, name:"Equipo de proveedores", hint:"Solo si hay hallazgo"},
+  {n:19, name:"Cableado expuesto", hint:"Solo si hay hallazgo"},
+  {n:20, name:"AC sucio o sin mantenimiento", hint:"Solo si hay hallazgo"},
+  {n:21, name:"AC defectuoso", hint:"Solo si hay hallazgo"},
+  {n:22, name:"Basura", hint:"Solo si hay hallazgo"},
+  {n:23, name:"Hoja de servicios"},
+  {n:24, name:"Listado de materiales (repuestos)"},
+  {n:25, name:"Ubicación del cajero"}
+];
+
+// ---------- estado ----------
+const state = { tipo:"Preventivo", na:{}, photos:{} }; // photos[n] = [{id, blob, url, kb}]
+const $ = id => document.getElementById(id);
+const fields = ["atm","ticket","agencia","tecnico"];
+let currentItem = null;
+
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+
+// ---------- guardado local (por si el teléfono recarga la página al abrir la cámara) ----------
+function saveForm(){
+  try{
+    const d={tipo:state.tipo,na:state.na,peso:$("peso").value,sello:$("sello").checked};
+    fields.forEach(f=>d[f]=$(f).value);
+    localStorage.setItem("fotosatm.form",JSON.stringify(d));
+  }catch(e){}
+}
+function loadForm(){
+  try{
+    const d=JSON.parse(localStorage.getItem("fotosatm.form")||"null"); if(!d) return;
+    state.tipo=d.tipo||"Preventivo"; state.na=d.na||{};
+    fields.forEach(f=>{ if(d[f]) $(f).value=d[f]; });
+    if(d.peso) $("peso").value=d.peso;
+    if(typeof d.sello==="boolean") $("sello").checked=d.sello;
+  }catch(e){}
+}
+let dbp=null;
+function db(){
+  if(dbp) return dbp;
+  dbp=new Promise((res)=>{
+    try{
+      const r=indexedDB.open("fotosatm",1);
+      r.onupgradeneeded=()=>r.result.createObjectStore("fotos",{keyPath:"id"});
+      r.onsuccess=()=>res(r.result); r.onerror=()=>res(null);
+    }catch(e){res(null)}
+  });
+  return dbp;
+}
+async function dbDo(mode,fn){
+  const d=await db(); if(!d) return null;
+  return new Promise(res=>{
+    try{ const tx=d.transaction("fotos",mode); const st=tx.objectStore("fotos"); const out=fn(st);
+      tx.oncomplete=()=>res(out&&out.result!==undefined?out.result:null); tx.onerror=()=>res(null);
+    }catch(e){res(null)}
+  });
+}
+async function loadPhotos(){
+  const all=await dbDo("readonly",st=>st.getAll());
+  if(!all) return;
+  all.sort((a,b)=>a.t-b.t).forEach(p=>{
+    (state.photos[p.n] ||= []).push({id:p.id,blob:p.blob,kb:p.kb,url:URL.createObjectURL(p.blob)});
+  });
+}
+
+// ---------- compresión ----------
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{res(img)}; img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("No se pudo leer la imagen"))};
+    img.src=url;
+  });
+}
+function toBlob(c,q){ return new Promise(r=>c.toBlob(r,"image/jpeg",q)); }
+function stampText(item){
+  const d=new Date(); const p=x=>String(x).padStart(2,"0");
+  const f=`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  const atm=$("atm").value.trim()||"ATM";
+  return `${atm} · #${item.n} ${item.name} · ${f}`;
+}
+async function compress(file,item){
+  const target=Number($("peso").value)*1024;
+  const img=await loadImage(file);
+  const text=$("sello").checked?stampText(item):null;
+  let maxSide=1600, best=null;
+  while(maxSide>=560){
+    const s=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.round(img.naturalWidth*s), h=Math.round(img.naturalHeight*s);
+    const c=document.createElement("canvas"); c.width=w; c.height=h;
+    const g=c.getContext("2d"); g.drawImage(img,0,0,w,h);
+    if(text){
+      const fs=Math.max(14,Math.round(w/38)); g.font=`600 ${fs}px "IBM Plex Sans Condensed", Arial, sans-serif`;
+      const pad=Math.round(fs*.5); g.fillStyle="rgba(0,0,0,.6)"; g.fillRect(0,h-fs-pad*2,w,fs+pad*2);
+      g.fillStyle="#fff"; g.textBaseline="middle"; g.fillText(text,pad,h-pad-fs/2,w-pad*2);
+    }
+    for(let q=.82;q>=.44;q-=.08){
+      const b=await toBlob(c,q); best=b;
+      if(b.size<=target){ URL.revokeObjectURL(img.src); return b; }
+    }
+    maxSide=Math.round(maxSide*.8);
+  }
+  URL.revokeObjectURL(img.src);
+  return best;
+}
+
+// ---------- lista ----------
+function itemStatus(n){ if((state.photos[n]||[]).length) return "done"; if(state.na[n]) return "na"; return "pend"; }
+function render(){
+  const ul=$("list"); ul.innerHTML="";
+  ITEMS.forEach(it=>{
+    const st=itemStatus(it.n); const ph=state.photos[it.n]||[];
+    const li=document.createElement("li"); li.className="item "+st;
+    const label={done:"Hecha",na:"No aplica",pend:"Pendiente"}[st];
+    li.innerHTML=`<span class="num">${String(it.n).padStart(2,"0")}</span>
+      <div><span class="name"></span><span class="state">${label}</span>${it.hint?`<div class="hint"></div>`:""}</div>
+      <div class="body"><div class="thumbs"></div><div class="acts"></div></div>`;
+    li.querySelector(".name").textContent=it.name;
+    if(it.hint) li.querySelector(".hint").textContent=it.hint;
+    const th=li.querySelector(".thumbs");
+    ph.forEach(p=>{
+      const d=document.createElement("div"); d.className="th";
+      d.innerHTML=`<img alt=""><small>${p.kb} KB</small><button type="button" aria-label="Quitar foto">×</button>`;
+      d.querySelector("img").src=p.url; d.querySelector("img").alt="Foto "+it.name;
+      d.querySelector("button").onclick=()=>removePhoto(it.n,p.id);
+      th.appendChild(d);
+    });
+    if(!ph.length) th.remove();
+    const acts=li.querySelector(".acts");
+    if(st!=="na"){
+      acts.append(mkBtn(ph.length?"Otra foto":"Tomar foto",ph.length?"btn sm":"btn primary sm",()=>pick(it,"cam")));
+      acts.append(mkBtn("Galería","btn ghost sm",()=>pick(it,"gal")));
+    }
+    if(!ph.length) acts.append(mkBtn(st==="na"?"Sí aplica":"No aplica","btn ghost sm",()=>{state.na[it.n]=!state.na[it.n];saveForm();render();}));
+    if(currentItem&&currentItem.n===it.n&&currentItem.busy){ const s=document.createElement("span"); s.className="busy"; s.textContent="Comprimiendo…"; acts.append(s); }
+    ul.appendChild(li);
+  });
+  const done=ITEMS.filter(i=>itemStatus(i.n)!=="pend").length;
+  $("count").textContent=`${done} / ${ITEMS.length}`;
+  $("barFill").style.width=(done/ITEMS.length*100)+"%";
+  renderSend();
+}
+function mkBtn(t,c,fn){ const b=document.createElement("button"); b.type="button"; b.className=c; b.textContent=t; b.onclick=fn; return b; }
+
+function pick(it,src){ currentItem={n:it.n}; try{sessionStorage.setItem("fotosatm.cur",it.n)}catch(e){} $(src==="cam"?"camInput":"galInput").click(); }
+async function handleFiles(files){
+  if(!files||!files.length) return;
+  let n=currentItem?currentItem.n:null;
+  if(n==null){ try{n=Number(sessionStorage.getItem("fotosatm.cur"))}catch(e){} }
+  const it=ITEMS.find(i=>i.n===n); if(!it) return;
+  currentItem={n,busy:true}; render();
+  for(const f of files){
+    try{
+      const blob=await compress(f,it);
+      const id=Date.now()+"-"+Math.random().toString(36).slice(2,7);
+      const p={id,blob,kb:Math.max(1,Math.round(blob.size/1024)),url:URL.createObjectURL(blob)};
+      (state.photos[n] ||= []).push(p); delete state.na[n];
+      await dbDo("readwrite",st=>st.put({id,n,blob,kb:p.kb,t:Date.now()}));
+    }catch(e){ toast("No se pudo procesar la foto. Intenta de nuevo."); }
+  }
+  currentItem=null; saveForm(); render();
+  toast(`Foto #${n} guardada`);
+}
+$("camInput").onchange=e=>{handleFiles([...e.target.files]); e.target.value="";};
+$("galInput").onchange=e=>{handleFiles([...e.target.files]); e.target.value="";};
+async function removePhoto(n,id){
+  const arr=state.photos[n]||[]; const i=arr.findIndex(p=>p.id===id);
+  if(i>-1){ URL.revokeObjectURL(arr[i].url); arr.splice(i,1); }
+  await dbDo("readwrite",st=>st.delete(id)); render();
+}
+
+// ---------- correo ----------
+function slug(s){ return s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"_").replace(/^_|_$/g,""); }
+function fileList(){
+  const atm=slug($("atm").value.trim()||"ATM"); const out=[];
+  ITEMS.forEach(it=>(state.photos[it.n]||[]).forEach((p,k,arr)=>{
+    out.push({name:`${String(it.n).padStart(2,"0")}_${slug(it.name)}${arr.length>1?"_"+(k+1):""}_${atm}.jpg`,blob:p.blob});
+  }));
+  return out;
+}
+function today(){ const d=new Date(),p=x=>String(x).padStart(2,"0"); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`; }
+function subject(){ return `Mantenimiento ${state.tipo} ATM ${$("atm").value.trim()||"(sin código)"} – ${today()}`; }
+function mailText(){
+  const v=f=>$(f).value.trim()||"—";
+  const lines=[
+    "Buen día,","",
+    `Adjunto las fotos del mantenimiento ${state.tipo.toLowerCase()} del ATM.`,"",
+    `ATM: ${v("atm")}`,`Agencia / ubicación: ${v("agencia")}`,`Ticket: ${v("ticket")}`,`Fecha: ${today()}`,`Técnico: ${v("tecnico")}`,"",
+    "Fotos:"
+  ];
+  ITEMS.forEach(it=>{
+    const st=itemStatus(it.n), c=(state.photos[it.n]||[]).length;
+    lines.push(`${String(it.n).padStart(2,"0")}. ${it.name}: ${st==="done"?(c>1?`OK (${c} fotos)`:"OK"):st==="na"?"No aplica":"PENDIENTE"}`);
+  });
+  lines.push("","Saludos,",$("tecnico").value.trim()||"");
+  return lines.join("\n");
+}
+function renderSend(){
+  const files=fileList(); const kb=files.reduce((a,f)=>a+f.blob.size,0)/1024;
+  $("summary").innerHTML=`<span>Fotos <b>${files.length}</b></span><span>Peso total <b>${kb>1024?(kb/1024).toFixed(1)+" MB":Math.round(kb)+" KB"}</b></span><span>Tipo <b>${state.tipo}</b></span>`;
+  const miss=ITEMS.filter(i=>itemStatus(i.n)==="pend");
+  const m=$("missing");
+  if(miss.length){ m.className="missing"; m.textContent=`Faltan ${miss.length}: `+miss.map(i=>"#"+i.n).join(", "); }
+  else { m.className="missing ok"; m.textContent="Lista completa. Todas las fotos están tomadas o marcadas como No aplica."; }
+  $("mail").value="Asunto: "+subject()+"\n\n"+mailText();
+  $("btnShare").disabled=$("btnZip").disabled=!files.length;
+}
+
+// ---------- ZIP (sin librerías) ----------
+const CRC=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[i]=c>>>0;}return t;})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+async function makeZip(files){
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  const d=new Date(); const dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF;
+  const dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  for(const f of files){
+    const data=new Uint8Array(await f.blob.arrayBuffer()), name=enc.encode(f.name), crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,dt,true);h.setUint16(12,dd,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);
+    h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);h.setUint16(28,0,true);
+    parts.push(h.buffer,name,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,dt,true);c.setUint16(14,dd,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);
+    c.setUint16(28,name.length,true);c.setUint16(30,0,true);c.setUint16(32,0,true);c.setUint16(34,0,true);c.setUint16(36,0,true);
+    c.setUint32(38,0,true);c.setUint32(42,off,true);
+    central.push(c.buffer,name);
+    off+=30+name.length+data.length;
+  }
+  const cdSize=central.reduce((a,b)=>a+(b.byteLength),0);
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);
+  e.setUint32(12,cdSize,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...central,e.buffer],{type:"application/zip"});
+}
+
+// ---------- guardar archivo (funciona dentro de Claude o en un navegador normal) ----------
+let dlNs; const dlReady=(async()=>{ try{ dlNs=window.claude&&window.claude.use?await window.claude.use("downloads"):null; }catch(e){ dlNs=null; } })();
+async function saveBlob(filename,blob){
+  if(window.claude&&window.claude.use){
+    await dlReady;
+    if(dlNs){ try{ await dlNs.save({filename,data:blob}); return true; }catch(e){ if(e&&e.code==="declined") return false; toast("No se pudo guardar aquí."); return false; } }
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500); return true;
+}
+function zipName(){ return `${slug($("atm").value.trim()||"ATM")}_${state.tipo}_${today().split("/").reverse().join("-")}.zip`; }
+
+$("btnZip").onclick=async()=>{
+  const files=fileList(); if(!files.length) return;
+  $("btnZip").disabled=true; const zip=await makeZip(files); $("btnZip").disabled=false;
+  if(await saveBlob(zipName(),zip)) toast("ZIP listo");
+};
+$("btnShare").onclick=async()=>{
+  const files=fileList().map(f=>new File([f.blob],f.name,{type:"image/jpeg"}));
+  const data={title:subject(),text:mailText(),files};
+  try{
+    if(navigator.canShare&&navigator.canShare(data)){ await navigator.share(data); return; }
+  }catch(e){ if(e&&e.name==="AbortError") return; }
+  $("shareNote").textContent="Aquí no se puede abrir el menú de compartir. Descarga el ZIP, copia el texto del correo y adjunta el ZIP en Outlook o Gmail.";
+  toast("Usa Descargar ZIP + Copiar texto");
+};
+$("btnCopy").onclick=async()=>{
+  const t="Asunto: "+subject()+"\n\n"+mailText();
+  try{ await navigator.clipboard.writeText(t); toast("Texto copiado"); }
+  catch(e){ const m=$("mail"); m.focus(); m.select(); toast("Texto seleccionado, cópialo"); }
+};
+
+// ---------- tipo, campos, reinicio ----------
+function setTipo(t){ state.tipo=t; $("tipoPrev").setAttribute("aria-pressed",t==="Preventivo"); $("tipoCorr").setAttribute("aria-pressed",t==="Correctivo"); saveForm(); renderSend(); }
+$("tipoPrev").onclick=()=>setTipo("Preventivo");
+$("tipoCorr").onclick=()=>setTipo("Correctivo");
+fields.forEach(f=>$(f).addEventListener("input",()=>{saveForm();renderSend();}));
+$("peso").onchange=saveForm; $("sello").onchange=saveForm;
+$("btnReset").onclick=()=>{$("confirmBox").hidden=false;};
+$("resetNo").onclick=()=>{$("confirmBox").hidden=true;};
+$("resetYes").onclick=async()=>{
+  Object.values(state.photos).flat().forEach(p=>URL.revokeObjectURL(p.url));
+  state.photos={}; state.na={}; ["atm","ticket","agencia"].forEach(f=>$(f).value="");
+  await dbDo("readwrite",st=>st.clear()); saveForm(); $("confirmBox").hidden=true; $("shareNote").textContent=""; render(); toast("Listo para otro ATM");
+};
+
+(async()=>{ loadForm(); setTipo(state.tipo); render(); await loadPhotos(); render(); })();
+</script>
+</body></html>
