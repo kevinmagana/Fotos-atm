@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <title>Fotos ATM</title>
 <meta name="theme-color" content="#16202a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -80,6 +80,10 @@ textarea{font:13px/1.45 var(--mono);width:100%;min-height:180px;color:var(--ink)
 .missing.ok{background:var(--ok-soft);color:var(--ok)}
 .note{font-size:13px;color:var(--muted);margin:10px 0 0}
 .confirm{margin-top:10px;padding:10px;border:1px dashed var(--warn);border-radius:8px;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.loc{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.loc .lt{font-size:14px;color:var(--muted);flex:1 1 220px}
+.loc .lt b{color:var(--ink);font-weight:600}
+.loc .lt code{font-family:var(--mono);font-size:13px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
@@ -90,6 +94,8 @@ textarea{font:13px/1.45 var(--mono);width:100%;min-height:180px;color:var(--ink)
     <div class="toprow"><h1>Fotos ATM</h1><span class="count" id="count">0 / 25</span></div>
     <div class="bar"><i id="barFill"></i></div>
   </header>
+
+  <p class="missing" id="nojs">Si ves este mensaje, tu celular abrió la página en modo vista previa y los botones de fotos no van a aparecer. Ábrela desde su dirección web en Chrome o Safari.</p>
 
   <h2>Datos del mantenimiento</h2>
   <div class="panel">
@@ -111,7 +117,11 @@ textarea{font:13px/1.45 var(--mono);width:100%;min-height:180px;color:var(--ink)
           <option value="400">máx. 400 KB</option>
         </select>
       </label>
-      <label><input type="checkbox" id="sello" checked> Poner ATM, fecha y hora en la foto</label>
+      <label><input type="checkbox" id="sello" checked> Poner etiqueta en la foto (fecha, hora, ubicación y mapa)</label>
+    </div>
+    <div class="loc">
+      <div class="lt" id="locText">Ubicación: todavía no se ha obtenido.</div>
+      <button class="btn sm" type="button" id="btnLoc">Obtener ubicación</button>
     </div>
   </div>
 
@@ -147,14 +157,14 @@ textarea{font:13px/1.45 var(--mono);width:100%;min-height:180px;color:var(--ink)
 
 <script>
 const ITEMS = [
-  {n:1,  name:"Serie DD"},
+  {n:1,  name:"Serie de disco duro"},
   {n:2,  name:"Parte superior (CPU) limpia"},
   {n:3,  name:"Parte inferior limpia"},
-  {n:4,  name:"Luces en verde", hint:"Dispositivos listos en verde"},
+  {n:4,  name:"Componentes funcionando", hint:"Listas en verde"},
   {n:5,  name:"System Info (procesador)"},
   {n:6,  name:"Lectora y antiskimming limpios"},
   {n:7,  name:"Monitor con filtro"},
-  {n:8,  name:"Panel DN o foto al SDU", hint:"Se debe desarmar el SDU"},
+  {n:8,  name:"Padel Will o SDU", hint:"Se debe desarmar el SDU"},
   {n:9,  name:"Cámara", hint:"Importa que se vea el sensor"},
   {n:10, name:"Dispositivos del ATM desarmado"},
   {n:11, name:"Tipo de teclado"},
@@ -236,27 +246,121 @@ function loadImage(file){
   });
 }
 function toBlob(c,q){ return new Promise(r=>c.toBlob(r,"image/jpeg",q)); }
-function stampText(item){
-  const d=new Date(); const p=x=>String(x).padStart(2,"0");
-  const f=`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
-  const atm=$("atm").value.trim()||"ATM";
-  return `${atm} · #${item.n} ${item.name} · ${f}`;
+// ---------- ubicación, dirección y mapa ----------
+let loc=null, locPromise=null;
+const DIAS=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+function withTimeout(ms){ const c=new AbortController(); setTimeout(()=>c.abort(),ms); return c.signal; }
+function renderLoc(msg){
+  const el=$("locText");
+  if(msg){ el.textContent=msg; return; }
+  if(!loc){ el.textContent="Ubicación: todavía no se ha obtenido."; return; }
+  const t=new Date(loc.t), p=x=>String(x).padStart(2,"0");
+  el.innerHTML=`<b></b><br><code></code>`;
+  el.querySelector("b").textContent=loc.addr||"Dirección no disponible (sin internet)";
+  el.querySelector("code").textContent=`${loc.lat.toFixed(6)}, ${loc.lon.toFixed(6)} ±${loc.acc} m · ${p(t.getHours())}:${p(t.getMinutes())}${loc.mapImg?"":" · sin mapa"}`;
 }
-async function compress(file,item){
+function saveLoc(){ try{ localStorage.setItem("fotosatm.loc",JSON.stringify({lat:loc.lat,lon:loc.lon,acc:loc.acc,addr:loc.addr,map:loc.map,t:loc.t})); }catch(e){} }
+function loadLoc(){
+  try{ const d=JSON.parse(localStorage.getItem("fotosatm.loc")||"null"); if(!d) return;
+    loc=d; if(d.map){ const im=new Image(); im.onload=()=>{loc.mapImg=im;renderLoc();}; im.src=d.map; } renderLoc();
+  }catch(e){}
+}
+async function reverseGeocode(lat,lon){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&accept-language=es`,{signal:withTimeout(9000)});
+    const j=await r.json(), a=j.address||{};
+    const calle=[a.road||a.pedestrian||a.neighbourhood||a.suburb, a.house_number].filter(Boolean).join(" ");
+    const ciudad=a.city||a.town||a.village||a.municipality||a.county;
+    return [calle,ciudad,a.state,a.country].filter(Boolean).join(", ");
+  }catch(e){ return ""; }
+}
+function loadTile(z,x,y){
+  return new Promise(res=>{ const im=new Image(); im.crossOrigin="anonymous";
+    const t=setTimeout(()=>res(null),9000);
+    im.onload=()=>{clearTimeout(t);res(im)}; im.onerror=()=>{clearTimeout(t);res(null)};
+    im.src=`https://tile.openstreetmap.org/${z}/${x}/${y}.png`; });
+}
+async function buildMap(lat,lon){
+  try{
+    const z=16, n=2**z, fx=(lon+180)/360*n, r=lat*Math.PI/180;
+    const fy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n;
+    const tx=Math.floor(fx), ty=Math.floor(fy);
+    const tiles=[]; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) tiles.push(loadTile(z,tx+dx,ty+dy).then(im=>({im,dx,dy})));
+    const got=await Promise.all(tiles); if(got.filter(t=>t.im).length<4) return null;
+    const S=240, c=document.createElement("canvas"); c.width=S; c.height=S; const g=c.getContext("2d");
+    g.fillStyle="#e8e8e8"; g.fillRect(0,0,S,S);
+    const cx=(fx-tx+1)*256, cy=(fy-ty+1)*256; // punto dentro del mosaico 3x3
+    got.forEach(t=>{ if(t.im) g.drawImage(t.im,(t.dx+1)*256-(cx-S/2),(t.dy+1)*256-(cy-S/2)); });
+    return c.toDataURL("image/jpeg",.85);
+  }catch(e){ return null; }
+}
+function getLocation(force){
+  if(!force && loc && Date.now()-loc.t<15*60*1000) return Promise.resolve(loc);
+  if(locPromise) return locPromise;
+  if(!navigator.geolocation){ renderLoc("Este navegador no da la ubicación. La etiqueta llevará solo fecha y hora."); return Promise.resolve(loc); }
+  renderLoc("Obteniendo ubicación…");
+  locPromise=(async()=>{
+    try{
+      const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:20000,maximumAge:60000}));
+      const L={lat:pos.coords.latitude,lon:pos.coords.longitude,acc:Math.round(pos.coords.accuracy),t:Date.now(),addr:"",map:null,mapImg:null};
+      const [addr,map]=await Promise.all([reverseGeocode(L.lat,L.lon),buildMap(L.lat,L.lon)]);
+      L.addr=addr; L.map=map;
+      if(map){ L.mapImg=await new Promise(r=>{const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=map;}); }
+      loc=L; saveLoc(); renderLoc(); renderSend();
+    }catch(e){
+      renderLoc(loc?null:"No se pudo obtener la ubicación. Revisa que el GPS esté encendido y que el navegador tenga permiso.");
+      if(loc) renderLoc();
+    }
+    locPromise=null; return loc;
+  })();
+  return locPromise;
+}
+$("btnLoc").onclick=()=>getLocation(true);
+
+// ---------- etiqueta en la foto ----------
+function rrect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function drawStamp(g,w,h,info){
+  const p=x=>String(x).padStart(2,"0"), d=info.date;
+  const big=Math.max(18,Math.round(Math.min(w,h*1.1)*0.05)), small=Math.round(big*0.6), pad=Math.round(big*0.6);
+  const lines=[];
+  lines.push(DIAS[d.getDay()]+(info.loc?`  ·  ${info.loc.lat.toFixed(6)}, ${info.loc.lon.toFixed(6)}  ±${info.loc.acc} m`:""));
+  if(info.loc&&info.loc.addr) lines.push(info.loc.addr);
+  lines.push(info.tag);
+  const textH=big*1.25+lines.length*small*1.4;
+  const map=info.loc&&info.loc.mapImg, ms=map?Math.round(Math.max(textH,big*3.6)):0;
+  const blockH=Math.max(textH,ms)+pad*2;
+  const grd=g.createLinearGradient(0,h-blockH*1.35,0,h);
+  grd.addColorStop(0,"rgba(0,0,0,0)"); grd.addColorStop(.35,"rgba(0,0,0,.45)"); grd.addColorStop(1,"rgba(0,0,0,.72)");
+  g.fillStyle=grd; g.fillRect(0,h-blockH*1.35,w,blockH*1.35);
+  let x=pad;
+  if(map){
+    const my=h-pad-ms;
+    g.save(); rrect(g,pad,my,ms,ms,ms*.1); g.clip(); g.drawImage(map,pad,my,ms,ms);
+    g.fillStyle="rgba(255,255,255,.75)"; const af=Math.max(8,Math.round(ms*.07)); g.font=`${af}px Arial, sans-serif`;
+    const at="© OpenStreetMap"; const aw=g.measureText(at).width; g.fillRect(pad+ms-aw-6,my+ms-af-4,aw+6,af+4);
+    g.fillStyle="#333"; g.textBaseline="bottom"; g.fillText(at,pad+ms-aw-3,my+ms-2); g.restore();
+    g.beginPath(); g.arc(pad+ms/2,my+ms/2,ms*.075,0,Math.PI*2); g.fillStyle="#e53935"; g.fill(); g.lineWidth=Math.max(2,ms*.018); g.strokeStyle="#fff"; g.stroke();
+    x=pad*2+ms;
+  }
+  const maxW=w-x-pad, top=h-pad-Math.max(textH,ms)+(Math.max(textH,ms)-textH)/2;
+  g.fillStyle="#fff"; g.textBaseline="top"; g.shadowColor="rgba(0,0,0,.6)"; g.shadowBlur=big*.15;
+  g.font=`700 ${big}px "IBM Plex Sans Condensed", Arial, sans-serif`;
+  g.fillText(`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}  ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`,x,top,maxW);
+  g.font=`500 ${small}px "IBM Plex Sans Condensed", Arial, sans-serif`;
+  lines.forEach((t,i)=>g.fillText(t,x,top+big*1.25+i*small*1.4,maxW));
+  g.shadowBlur=0;
+}
+async function compress(file,item,L){
   const target=Number($("peso").value)*1024;
   const img=await loadImage(file);
-  const text=$("sello").checked?stampText(item):null;
+  const info=$("sello").checked?{date:(file.lastModified&&file.lastModified<Date.now()+60000&&file.lastModified>946684800000)?new Date(file.lastModified):new Date(), loc:L, tag:`${$("atm").value.trim()||"ATM"} · #${item.n} ${item.name}`}:null;
   let maxSide=1600, best=null;
   while(maxSide>=560){
     const s=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
     const w=Math.round(img.naturalWidth*s), h=Math.round(img.naturalHeight*s);
     const c=document.createElement("canvas"); c.width=w; c.height=h;
     const g=c.getContext("2d"); g.drawImage(img,0,0,w,h);
-    if(text){
-      const fs=Math.max(14,Math.round(w/38)); g.font=`600 ${fs}px "IBM Plex Sans Condensed", Arial, sans-serif`;
-      const pad=Math.round(fs*.5); g.fillStyle="rgba(0,0,0,.6)"; g.fillRect(0,h-fs-pad*2,w,fs+pad*2);
-      g.fillStyle="#fff"; g.textBaseline="middle"; g.fillText(text,pad,h-pad-fs/2,w-pad*2);
-    }
+    if(info) drawStamp(g,w,h,info);
     for(let q=.82;q>=.44;q-=.08){
       const b=await toBlob(c,q); best=b;
       if(b.size<=target){ URL.revokeObjectURL(img.src); return b; }
@@ -305,16 +409,17 @@ function render(){
 }
 function mkBtn(t,c,fn){ const b=document.createElement("button"); b.type="button"; b.className=c; b.textContent=t; b.onclick=fn; return b; }
 
-function pick(it,src){ currentItem={n:it.n}; try{sessionStorage.setItem("fotosatm.cur",it.n)}catch(e){} $(src==="cam"?"camInput":"galInput").click(); }
+function pick(it,src){ currentItem={n:it.n}; try{sessionStorage.setItem("fotosatm.cur",it.n)}catch(e){} if($("sello").checked) getLocation(false); $(src==="cam"?"camInput":"galInput").click(); }
 async function handleFiles(files){
   if(!files||!files.length) return;
   let n=currentItem?currentItem.n:null;
   if(n==null){ try{n=Number(sessionStorage.getItem("fotosatm.cur"))}catch(e){} }
   const it=ITEMS.find(i=>i.n===n); if(!it) return;
   currentItem={n,busy:true}; render();
+  const L=$("sello").checked?await getLocation(false):null;
   for(const f of files){
     try{
-      const blob=await compress(f,it);
+      const blob=await compress(f,it,L);
       const id=Date.now()+"-"+Math.random().toString(36).slice(2,7);
       const p={id,blob,kb:Math.max(1,Math.round(blob.size/1024)),url:URL.createObjectURL(blob)};
       (state.photos[n] ||= []).push(p); delete state.na[n];
@@ -348,7 +453,8 @@ function mailText(){
   const lines=[
     "Buen día,","",
     `Adjunto las fotos del mantenimiento ${state.tipo.toLowerCase()} del ATM.`,"",
-    `ATM: ${v("atm")}`,`Agencia / ubicación: ${v("agencia")}`,`Ticket: ${v("ticket")}`,`Fecha: ${today()}`,`Técnico: ${v("tecnico")}`,"",
+    `ATM: ${v("atm")}`,`Agencia / ubicación: ${v("agencia")}`,`Ticket: ${v("ticket")}`,`Fecha: ${today()}`,`Técnico: ${v("tecnico")}`,
+    ...(loc?[`Ubicación: ${loc.addr||"—"}`,`Coordenadas: ${loc.lat.toFixed(6)}, ${loc.lon.toFixed(6)} (±${loc.acc} m)`,`Mapa: https://maps.google.com/?q=${loc.lat.toFixed(6)},${loc.lon.toFixed(6)}`]:[]),"",
     "Fotos:"
   ];
   ITEMS.forEach(it=>{
@@ -441,9 +547,9 @@ $("resetNo").onclick=()=>{$("confirmBox").hidden=true;};
 $("resetYes").onclick=async()=>{
   Object.values(state.photos).flat().forEach(p=>URL.revokeObjectURL(p.url));
   state.photos={}; state.na={}; ["atm","ticket","agencia"].forEach(f=>$(f).value="");
-  await dbDo("readwrite",st=>st.clear()); saveForm(); $("confirmBox").hidden=true; $("shareNote").textContent=""; render(); toast("Listo para otro ATM");
+  await dbDo("readwrite",st=>st.clear()); loc=null; try{localStorage.removeItem("fotosatm.loc")}catch(e){} renderLoc(); saveForm(); $("confirmBox").hidden=true; $("shareNote").textContent=""; render(); toast("Listo para otro ATM");
 };
 
-(async()=>{ loadForm(); setTipo(state.tipo); render(); await loadPhotos(); render(); })();
+(async()=>{ $("nojs").hidden=true; loadForm(); loadLoc(); setTipo(state.tipo); render(); await loadPhotos(); render(); })();
 </script>
 </body></html>
